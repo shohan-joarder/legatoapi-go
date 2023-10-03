@@ -24,7 +24,6 @@ type Country struct {
 }
 
 func main() {
-
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println(err)
@@ -47,6 +46,10 @@ func main() {
 		api.GET("/get-states/:country_id", controllers.GetState)
 		api.GET("/get-city/:state_id", controllers.GetCity)
 		api.GET("/get-area/:city_id", controllers.GetArea)
+
+		// collection routes
+		api.GET("/collections",controllers.GetCollection)
+		api.GET("/collections/:slug",controllers.GetCollectionDetails)
 	}
 
 	router.Run(":" + port)
