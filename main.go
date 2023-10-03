@@ -12,12 +12,20 @@ import (
 )
 
 type Country struct {
-	ID        int   
-	Name     string 
+	ID               int    `json:"id"`
+	Name             string `json:"name"`
+	IsoCode2         string `json:"iso_code_2"`
+	IsoCode3         string `json:"iso_code_3"`
+	IsoNumberCode    int    `json:"iso_numeric_code"`
+	AddressFormat    string `json:"address_format"`
+	PostCodeRequired int8   `json:"postcode_required"`
+	PhoneCode        int    `json:"phonecode"`
+	Ordering         int    `json:"ordering"`
+	Status           int8   `json:"status"`
 }
 
 func main() {
-	
+
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println(err)
@@ -33,34 +41,32 @@ func main() {
 
 	api := router.Group("/api")
 	{
-		api.GET("/",func (c *gin.Context)  {
+		api.GET("/", func(c *gin.Context) {
 			database.InitDB()
-			rows, err := database.DB.Query("SELECT * FROM country WHERE status=true")
+			query := "SELECT id, name,iso_code_2,iso_code_3,iso_numeric_code,address_format,postcode_required,phonecode,ordering,status FROM country"
+			rows, err := database.DB.Query(query)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error querying database"})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error querying database", "err": err.Error()})
 				return
 			}
 			defer rows.Close()
 			fmt.Println(rows)
-		// Create a slice to store todos
-		country := Country{}
-		response :=[] Country{}
-		// Iterate through the query results and populate the todos slice
-		for rows.Next() {
-			var id int
-			var name string
-			err := rows.Scan(&country.ID, &country.Name)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Error scanning rows"})
-				return
-			}
-			country.ID = id
-			country.Name = name
-			response = append(response, country)
-		}
+			// Create a slice to store todos
 
-		// Return JSON response
-		c.JSON(http.StatusOK, response)
+			response := []Country{}
+			// Iterate through the query results and populate the todos slice
+			for rows.Next() {
+				var country Country
+				err := rows.Scan(&country.ID, &country.Name, &country.IsoCode2, &country.IsoCode3, &country.IsoNumberCode, &country.AddressFormat, &country.PostCodeRequired, &country.PhoneCode, &country.Ordering, &country.Status)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Error scanning rows", "err": err.Error()})
+					return
+				}
+				response = append(response, country)
+			}
+
+			// Return JSON response
+			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Country found", "data": response})
 
 			// c.JSON(http.StatusOK, "Started api server")
 		})
