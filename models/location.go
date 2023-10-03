@@ -1,36 +1,24 @@
 package models
 
-import "api.legatodesigns.com/database"
-
 type Country struct {
-	ID   int   
-	Name string
+	ID               int    `json:"id"`
+	Name             string `json:"name"`
+	IsoCode2         string `json:"iso_code_2"`
+	IsoCode3         string `json:"iso_code_3"`
+	IsoNumberCode    int    `json:"iso_numeric_code"`
+	AddressFormat    string `json:"address_format"`
+	PostCodeRequired int8   `json:"postcode_required"`
+	PhoneCode        int    `json:"phonecode"`
+	Ordering         int    `json:"ordering"`
+	Status           int8   `json:"status"`
 }
 
-func CountryList() []Country {
-	db := database.DBConnect()
-	selDB,err := db.Query("SELECT * FROM country")
+type State struct {
+	Id   int64  `json:"id"`
+	Name string `json:"name"`
+}
 
-	country := Country{}
-	response :=[] Country{}
-	if err !=nil {
-		panic("Db get error"+ err.Error())
-	}
-	defer selDB.Close()
-	for selDB.Next() {
-		var id int
-		var name string
-		err := selDB.Scan(&id,&name)
-		if err != nil {
-			panic("Db scan error"+ err.Error())
-		}
-
-		country.ID = id
-		country.Name = name
-
-		response = append(response, country)
-	}
-	return response
-	// defer db.Close();
-
+type CityAndLocation struct {
+	Id    int64  `json:"id"`
+	Title string `json:"title"`
 }
