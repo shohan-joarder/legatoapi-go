@@ -48,8 +48,8 @@ func main() {
 		api.GET("/get-area/:city_id", controllers.GetArea)
 
 		// collection routes
-		api.GET("/collections",controllers.GetCollection)
-		api.GET("/collections/:slug",controllers.GetCollectionDetails)
+		api.GET("/collections", controllers.GetCollection)
+		api.GET("/collections/:slug", controllers.HandleGetCollectionAPIRequest)
 	}
 
 	router.Run(":" + port)
