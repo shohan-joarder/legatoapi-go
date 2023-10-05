@@ -57,21 +57,173 @@ func getNextCollectionId(currentID int) int {
 	return nextID
 }
 
-func GetCollectionDetails(c *gin.Context) {
-	pram := c.Param("slug")
+type GetCollectionDetailsST struct{
+	ID               int            `json:"id"`
+	Title            string         `json:"title"`
+	Slug             string         `json:"slug"`
+	SubTitle         string         `json:"subtitle"`
+	AboutTitle       *string        `json:"about_title"`
+	AboutDescription *string        `json:"about_description"`
+	Banner           sql.NullString `json:"banner"`
+	OgImage          sql.NullString `json:"og_image,omitempty"`
+	MetaTitle        *string        `json:"meta_title"`
+	MetaKeywords     *string        `json:"meta_keywords"`
+	MetaDescription  *string        `json:"meta_description"`
+	OgTitle          *string        `json:"og_title"`
+	OgDescription    *string        `json:"og_description"`
+	NextCollection   models.Collection     `json:"next_collection"`
+	// CollectionCategories []models.CollectionCategory `json:"collection_categories"`
+}
+type ResponseCollectionDetailsST struct{
+	ID               int            `json:"id"`
+	Title            string         `json:"title"`
+	Slug             string         `json:"slug"`
+	SubTitle         string         `json:"subtitle"`
+	AboutTitle       *string        `json:"about_title"`
+	AboutDescription *string        `json:"about_description"`
+	Banner           string 		`json:"banner"`
+	OgImage          string 		`json:"og_image,omitempty"`
+	MetaTitle        *string        `json:"meta_title"`
+	MetaKeywords     *string        `json:"meta_keywords"`
+	MetaDescription  *string        `json:"meta_description"`
+	OgTitle          *string        `json:"og_title"`
+	OgDescription    *string        `json:"og_description"`
+	NextCollection   models.Collection     `json:"next_collection"`
+	CollectionCategories []models.CollectionCategory `json:"collection_categories"`
+}
+
+
+func getCollectionBySlug(slug string)(GetCollectionDetailsST,error){
 	database.InitDB()
+	getCollNullSql :=GetCollectionDetailsST{}
+	err := database.DB.QueryRow("SELECT id,title,slug,subtitle,about_title,about_description,	banner,	og_image,	meta_title,	meta_keywords,	meta_description,	og_title,	og_description from collections where slug = ?", slug).Scan(&getCollNullSql.ID, &getCollNullSql.Title, &getCollNullSql.Slug, &getCollNullSql.SubTitle, &getCollNullSql.AboutTitle, &getCollNullSql.AboutDescription, &getCollNullSql.Banner, &getCollNullSql.OgImage, &getCollNullSql.MetaTitle, &getCollNullSql.MetaKeywords, &getCollNullSql.MetaDescription, &getCollNullSql.OgTitle, &getCollNullSql.OgDescription)
 
-	response := models.CollectionDetails{}
+	if err != nil {
+		return getCollNullSql, err
+	}
+	return getCollNullSql, nil
 
-	err := database.DB.QueryRow("SELECT id,title,slug,subtitle,about_title,about_description,	banner,	og_image,	meta_title,	meta_keywords,	meta_description,	og_title,	og_description from collections where slug = ?", pram).Scan(&response.ID, &response.Title, &response.Slug, &response.SubTitle, &response.AboutTitle, &response.AboutDescription, &response.Banner, &response.OgImage, &response.MetaTitle, &response.MetaKeywords, &response.MetaDescription, &response.OgTitle, &response.OgDescription)
+}
 
-	if response.Banner != "" {
-		response.Banner = helper.GetFilePath(response.Banner)
+
+func getCollectionCategoryProducts(id int) ([]models.ResProductWithOnlyThumbnail,error){
+	database.InitDB()
+	
+
+	query :=`
+		SELECT p.id, p.name,p.slug,p.thumbnail_img FROM products p 
+		LEFT JOIN collection_category_product ccp ON ccp.product_id = p.id 
+		WHERE ccp.collection_category_id=?
+	` 
+
+	rows, err := database.DB.Query(query,id)
+
+	if err != nil {
+		return []models.ResProductWithOnlyThumbnail{}, err
+	}
+	defer rows.Close()
+
+	products :=[]models.ResProductWithOnlyThumbnail{}
+
+	for rows.Next() {
+		getCollCategoryProduct :=models.GetProductWithOnlyThumbnail{}
+		resCollCategoryProduct :=models.ResProductWithOnlyThumbnail{}
+		err := rows.Scan(&getCollCategoryProduct.ID,&getCollCategoryProduct.Name, &getCollCategoryProduct.Slug,&getCollCategoryProduct.ThumbnailImage)
+
+		if err != nil {
+			return []models.ResProductWithOnlyThumbnail{}, err
+		}
+
+		resCollCategoryProduct.ID = getCollCategoryProduct.ID
+		resCollCategoryProduct.Name = getCollCategoryProduct.Name
+		resCollCategoryProduct.Slug = getCollCategoryProduct.Slug
+
+		if getCollCategoryProduct.ThumbnailImage.Valid{
+			resCollCategoryProduct.ThumbnailImage = helper.GetFilePath(getCollCategoryProduct.ThumbnailImage.String)
+		}
+
+		products = append(products, resCollCategoryProduct)
+	}
+	return products, nil
+}
+
+func getCollectionCategoryById(id int)([]models.CollectionCategory,error){
+	database.InitDB()
+	
+	returnData :=[]models.CollectionCategory{}
+
+	query :=`
+		SELECT cc.id, cc.name,cc.slug FROM collection_categories cc
+		LEFT JOIN collection_collection_category  ccc ON ccc.collection_id = cc.id
+		Where ccc.collection_id =?
+	` 
+
+	rows, err := database.DB.Query(query,id)
+
+	if err != nil {
+		return []models.CollectionCategory{}, err
 	}
 
-	// if response.OgImage.Valid {
-	// 	response.OgImage = response.OgImage
-	// }
+	defer rows.Close()
+
+	for rows.Next() {
+		getCollCategory :=models.CollectionCategory{}
+		err := rows.Scan(&getCollCategory.ID,&getCollCategory.Name, &getCollCategory.Slug)
+
+		if err != nil {
+			return []models.CollectionCategory{}, err
+		}
+
+		categoryProduct,err := getCollectionCategoryProducts(getCollCategory.ID)
+
+		if err != nil {
+			return []models.CollectionCategory{}, err
+		}
+
+		getCollCategory.Products= categoryProduct
+
+		returnData = append(returnData, getCollCategory)
+	}
+
+	return returnData , nil
+}
+
+func GetCollectionDetails(c *gin.Context) {
+	pram := c.Param("slug")
+	
+	collection ,err :=getCollectionBySlug(pram)
+
+	if err != nil{
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error get collection by slug", "err": err.Error()})
+			return
+	}
+
+	response := ResponseCollectionDetailsST{}
+
+	response.ID = collection.ID
+	response.Title = collection.Title
+	response.Slug = collection.Slug
+	response.SubTitle = collection.SubTitle
+	response.AboutTitle = collection.AboutTitle
+	response.AboutDescription = collection.AboutTitle
+	response.MetaTitle = collection.MetaTitle
+	response.MetaKeywords = collection.MetaKeywords
+	response.MetaDescription = collection.MetaDescription
+	response.OgTitle = collection.OgTitle
+	response.OgDescription = collection.OgDescription
+
+	if collection.Banner.Valid {
+		response.Banner = helper.GetFilePath(collection.Banner.String)
+	}else{
+		response.Banner = ""
+	}
+	if collection.OgImage.Valid {
+		response.OgImage = helper.GetFilePath(collection.OgImage.String)
+	}else{
+		response.OgImage = ""
+	}
+
+	response.CollectionCategories,err= getCollectionCategoryById(response.ID)
 
 	nextId := getNextCollectionId(response.ID)
 
@@ -158,3 +310,34 @@ func HandleGetCollectionAPIRequest(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Collection found", "data": apiResponse})
 }
+
+
+/* func getCollectionWithCategory(catSlug string)([]GetCollectionDetails,error){
+	database.InitDB()
+		rows, err := database.DB.Query(`
+		SELECT col.id, col.title, col.slug,col.subtitle,col.about_title,col.about_description,col.banner,col.og_image,
+		col.meta_title,col.meta_keywords,col.meta_description,col.og_title,col.og_description,cat.slug,cat.name
+		FROM collections col
+		LEFT JOIN collection_collection_category pccc ON col.id = pccc.collection_id
+		LEFT JOIN collection_categories cat ON cat.id = pccc.collection_category_id
+		WHERE col.slug=?`,catSlug)
+
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		collections := make(map[int]GetCollectionDetails)
+
+		resCollection := GetCollectionDetails{}
+		resCat :=models.CollectionCategory{}
+
+		for rows.Next() {
+			err := rows.Scan(&resCollection.ID, &resCollection.Title, &resCollection.Slug,&resCollection.Slug, &resCollection.SubTitle, &resCollection.AboutTitle, &resCollection.AboutDescription, &resCollection.Banner, &resCollection.OgImage, &resCollection.MetaTitle, &resCollection.MetaKeywords, &resCollection.MetaDescription, &resCollection.OgTitle, &resCollection.OgDescription, &resCollection,resCat.Slug,resCat.Name)
+			if err != nil {
+				return nil, err
+			}
+
+		}
+
+} */
