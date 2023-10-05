@@ -14,3 +14,4 @@ type ResProductWithOnlyThumbnail struct {
 	Slug           string         `json:"slug"`
 	ThumbnailImage string `json:"thumbnail_img"`
 }
+
