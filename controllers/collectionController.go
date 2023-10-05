@@ -145,9 +145,6 @@ func HandleGetCollectionAPIRequest(c *gin.Context) {
 		// Concatenate a string with the Name value
 		apiResponse.OgImage = collection.OgImage.String
 		apiResponse.OgImage = helper.GetFilePath(apiResponse.OgImage)
-	} else {
-		// Handle the case when the Name field is null
-		apiResponse.OgImage = "Hello, Guest!"
 	}
 
 	// Convert API response to JSON and send it
