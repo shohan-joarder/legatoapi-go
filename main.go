@@ -49,7 +49,8 @@ func main() {
 
 		// collection routes
 		api.GET("/collections", controllers.GetCollection)
-		api.GET("/collections/:slug", controllers.HandleGetCollectionAPIRequest)
+		api.GET("/collections/:slug", controllers.GetCollectionDetails)
+		// api.GET("/collections/:slug", controllers.HandleGetCollectionAPIRequest)
 	}
 
 	router.Run(":" + port)
